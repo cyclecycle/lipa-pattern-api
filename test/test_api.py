@@ -29,7 +29,7 @@ class TestApi:
         client = self.client
         event_name = 'find_matches'
         data = {
-            'pattern_id': 3,
+            'pattern_id': 2,
         }
         client.get_received()
         client.emit(event_name, data)
