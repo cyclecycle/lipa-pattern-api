@@ -19,33 +19,35 @@ def on_connect():
 @socketio.on('build_pattern')
 def build_pattern(data):
     send('build pattern request received')
-    pos_training_example_id = data['pos_training_example_id']
-    pos_training_example = db.fetch_row(
-        'training_examples',
-        pos_training_example_id,
+    pos_match_id = data['pos_match_id']
+    pos_match_row = db.fetch_row(
+        'matches',
+        pos_match_id,
         return_type='dict',
     )
-    sentence_id = pos_training_example['sentence_id']
+    sentence_id = pos_match_row['sentence_id']
     send('loading linguistic data')
     doc = db.load_sentence_doc(sentence_id)
     send('preparing training data')
-    match_example = {}
-    role_slots = json.loads(pos_training_example['data'])['slots']
-    for role_slot in role_slots:
-        label = role_slot['label']
-        tokens = [doc[token['i']] for token in role_slot['tokens']]
-        match_example[label] = tokens
+    pos_match = json.loads(pos_match_row['data'])['slots']
+    pos_match = db.spacify_match(pos_match, sentence_id)
+    print(doc, pos_match)
     send('calculating pattern')
     feature_dict = {'DEP': 'dep_', 'TAG': 'tag_'}
     role_pattern_builder = RolePatternBuilder(feature_dict)
-    role_pattern = role_pattern_builder.build(doc, match_example)
+    role_pattern = role_pattern_builder.build(pos_match)
     send('saving pattern to database')
     pattern_row = {
         'name': 'unamed_pattern',
-        'seed_example_id': pos_training_example_id,
         'role_pattern_instance': pickle.dumps(role_pattern)
     }
     pattern_id = db.insert_row('patterns', pattern_row)
+    pattern_training_match_row = {
+        'match_id': pos_match_id,
+        'pattern_id': pattern_id,
+        'pos_or_neg': 'pos',
+    }
+    pattern_id = db.insert_row('pattern_training_matches', pattern_training_match_row)
     send('pattern saved: {}'.format(pattern_id))
 
 
@@ -62,26 +64,66 @@ def find_matches(data):
     for sentence_id in sentence_ids:
         doc = db.load_sentence_doc(sentence_id)
         matches = role_pattern.match(doc)
-        matches = [db.despacify_role_pattern_match(match, sentence_id) for match in matches]
+        matches = [db.despacify_match(match, sentence_id) for match in matches]
         for match in matches:
             match_row = {
-                'pattern_id': pattern_id,
                 'sentence_id': sentence_id,
                 'data': json.dumps(match)
             }
             match_id = db.insert_row('matches', match_row)
-            print(match_id)
             match_ids.append(match_id)
+            pattern_match_row = {
+                'match_id': match_id,
+                'pattern_id': pattern_id,
+            }
+            db.insert_row('pattern_matches', pattern_match_row)
     send('matches saved: {}'.format(match_ids))
 
 
+@socketio.on('refine_pattern')
 def refine_pattern(data):
     send('refine pattern request received')
-    pos_training_example_id = data['pos_training_example_id']
+    send('loading pattern')
+    pattern_id = data['pattern_id']
+    role_pattern = db.load_role_pattern(pattern_id)
+    send('loading matches')
+    pos_match_id = data['pos_match_id']
     neg_match_ids = data['neg_match_ids']
-    # pos_training_example = db.get_row('training_example', pos_training_example_id)
-    # neg_matches = db.get_rows('matches', neg_match_ids)
-    # Spacify the match examples
+    pos_match_row = db.fetch_row('matches', pos_match_id, return_type='dict')
+    neg_match_rows = db.fetch_rows('matches', neg_match_ids, return_type='dict')
+    send('preparing training data')
+    pos_match_sentence_id = pos_match_row['sentence_id']
+    pos_match = json.loads(pos_match_row['data'])
+    pos_match = db.spacify_match(pos_match, pos_match_sentence_id)
+    neg_matches = []
+    for neg_match_row in neg_match_rows:
+        sentence_id = neg_match_row['sentence_id']
+        neg_match = json.loads(neg_match_row['data'])
+        neg_match = db.spacify_match(neg_match, sentence_id)
+        neg_matches.append(neg_matches)
+    send('calculating pattern')
+    feature_dict = {'DEP': 'dep_', 'TAG': 'tag_', 'LOWER': 'lower_'}
+    role_pattern_builder = RolePatternBuilder(feature_dict)
+    role_pattern_variants = role_pattern_builder.refine(
+        role_pattern,
+        pos_match,
+        neg_matches,
+    )
+    role_pattern_variants = list(role_pattern_variants)
+    try:  # Try to take the first pattern
+        refined_pattern = role_pattern_variants[0]
+    except IndexError as e:  # None meet the criteria
+        refined_pattern = None
+    if refined_pattern:
+        send('success. saving pattern')
+        pattern_row = {
+            'name': 'unamed_pattern',
+            'role_pattern_instance': pickle.dumps(role_pattern)
+        }
+        pattern_id = db.insert_row('patterns', pattern_row)
+        send('pattern saved: {}'.format(pattern_id))
+    else:
+        send('pattern refinement unsuccessful')
 
 
 if __name__ == '__main__':

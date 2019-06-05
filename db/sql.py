@@ -28,6 +28,15 @@ def fetch_row(table, row_id, return_type='tup'):
     return result
 
 
+def fetch_rows(table, row_ids, return_type='tup'):
+    id_list = ', '.join([str(id_) for id_ in row_ids])
+    query = 'select * from {0} where id IN ({1})'.format(table, id_list)
+    results = db_query(query, fetch='all')
+    if return_type == 'dict':
+        results = rows_to_dicts(results, table)
+    return results
+
+
 def insert_row(table, data):
     column_names = ', '.join(data.keys())
     query = 'insert into {0} ({1}) values ({2})'.format(
@@ -51,6 +60,12 @@ def row_to_dict(row, table):
     column_names = get_column_names(table)
     dict_ = dict(zip(column_names, row))
     return dict_
+
+
+def rows_to_dicts(rows, table):
+    column_names = get_column_names(table)
+    dicts_ = [dict(zip(column_names, row)) for row in rows]
+    return dicts_
 
 
 def get_ids(table):

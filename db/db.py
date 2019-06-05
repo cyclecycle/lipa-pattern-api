@@ -26,7 +26,7 @@ def load_role_pattern(pattern_id):
     return role_pattern
 
 
-def despacify_role_pattern_match(match, sentence_id):
+def despacify_match(match, sentence_id):
     # Replace each token with its database representation
     for label, tokens in match.items():
         despacified_tokens = []
@@ -34,6 +34,18 @@ def despacify_role_pattern_match(match, sentence_id):
             despacified_token = token_from_db(sentence_id, token.i)
             despacified_tokens.append(despacified_token)
         match[label] = despacified_tokens
+    return match
+
+
+def spacify_match(match, sentence_id):
+    doc = load_sentence_doc(sentence_id)
+    for label, tokens in match.items():
+        spacy_tokens = []
+        for token in tokens:
+            token_offset = token['token_offset']
+            spacy_token = doc[token_offset]
+            spacy_tokens.append(spacy_token)
+        match[label] = spacy_tokens
     return match
 
 
