@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, request
 from flask_socketio import SocketIO, send, emit
 import pickle
 import json
@@ -16,6 +16,19 @@ def on_connect():
     send('connected')
 
 
+@socketio.on('error')
+def error_handler(data):
+    send('error', data)
+    raise RuntimeError()
+
+
+@socketio.on_error_default
+def default_error_handler(e):
+    print(request.event["message"])
+    print(request.event["args"])
+    raise e
+
+
 @socketio.on('build_pattern')
 def build_pattern(data):
     send('build pattern request received')
@@ -26,12 +39,9 @@ def build_pattern(data):
         return_type='dict',
     )
     sentence_id = pos_match_row['sentence_id']
-    send('loading linguistic data')
-    doc = db.load_sentence_doc(sentence_id)
     send('preparing training data')
     pos_match = json.loads(pos_match_row['data'])['slots']
     pos_match = db.spacify_match(pos_match, sentence_id)
-    print(doc, pos_match)
     send('calculating pattern')
     feature_dict = {'DEP': 'dep_', 'TAG': 'tag_'}
     role_pattern_builder = RolePatternBuilder(feature_dict)
@@ -55,6 +65,7 @@ def build_pattern(data):
 def find_matches(data):
     # Look for matches in all sentences
     # Load the role pattern class
+    send('find matches request received')
     send('loading pattern')
     pattern_id = data['pattern_id']
     role_pattern = db.load_role_pattern(pattern_id)
@@ -90,7 +101,12 @@ def refine_pattern(data):
     pos_match_id = data['pos_match_id']
     neg_match_ids = data['neg_match_ids']
     pos_match_row = db.fetch_row('matches', pos_match_id, return_type='dict')
+    if not pos_match_row:
+        emit('error', 'no row found for pos match id: {}'.format(pos_match_id))
     neg_match_rows = db.fetch_rows('matches', neg_match_ids, return_type='dict')
+    for id_, row in zip(neg_match_ids, neg_match_rows):
+        if not row:
+            emit('error', 'no row found for neg match id: {}'.format(id_))
     send('preparing training data')
     pos_match_sentence_id = pos_match_row['sentence_id']
     pos_match = json.loads(pos_match_row['data'])
@@ -100,14 +116,14 @@ def refine_pattern(data):
         sentence_id = neg_match_row['sentence_id']
         neg_match = json.loads(neg_match_row['data'])
         neg_match = db.spacify_match(neg_match, sentence_id)
-        neg_matches.append(neg_matches)
+        neg_matches.append(neg_match)
     send('calculating pattern')
     feature_dict = {'DEP': 'dep_', 'TAG': 'tag_', 'LOWER': 'lower_'}
     role_pattern_builder = RolePatternBuilder(feature_dict)
     role_pattern_variants = role_pattern_builder.refine(
         role_pattern,
         pos_match,
-        neg_matches,
+        neg_matches
     )
     role_pattern_variants = list(role_pattern_variants)
     try:  # Try to take the first pattern

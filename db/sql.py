@@ -57,6 +57,8 @@ def get_column_names(table):
 
 
 def row_to_dict(row, table):
+    if not row:
+        return {}
     column_names = get_column_names(table)
     dict_ = dict(zip(column_names, row))
     return dict_
@@ -64,8 +66,14 @@ def row_to_dict(row, table):
 
 def rows_to_dicts(rows, table):
     column_names = get_column_names(table)
-    dicts_ = [dict(zip(column_names, row)) for row in rows]
-    return dicts_
+    dicts = []
+    for row in rows:
+        if not row:
+            dict_ = {}
+        else:
+            dict_ = dict(zip(column_names, row))
+        dicts.append(dict_)
+    return dicts
 
 
 def get_ids(table):
