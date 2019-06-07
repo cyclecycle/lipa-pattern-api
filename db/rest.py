@@ -1,7 +1,6 @@
 import requests
 
 
-
 def get_row(table, id_):
     query = '{0}/?id={1}'.format(table, id_)
     query_url = build_query_url(query)

@@ -13,6 +13,7 @@ socketio = SocketIO(app)
 
 @socketio.on('connect')
 def on_connect():
+    print('something connected')
     send('connected')
 
 
@@ -24,6 +25,7 @@ def error_handler(data):
 
 @socketio.on_error_default
 def default_error_handler(e):
+    emit('error', e)
     print(request.event["message"])
     print(request.event["args"])
     raise e
@@ -31,7 +33,7 @@ def default_error_handler(e):
 
 @socketio.on('build_pattern')
 def build_pattern(data):
-    send('build pattern request received')
+    send('Build pattern request received')
     pos_match_id = data['pos_match_id']
     pos_match_row = db.fetch_row(
         'matches',
@@ -39,14 +41,14 @@ def build_pattern(data):
         return_type='dict',
     )
     sentence_id = pos_match_row['sentence_id']
-    send('preparing training data')
+    send('Preparing training data')
     pos_match = json.loads(pos_match_row['data'])['slots']
     pos_match = db.spacify_match(pos_match, sentence_id)
-    send('calculating pattern')
+    send('Calculating pattern')
     feature_dict = {'DEP': 'dep_', 'TAG': 'tag_'}
     role_pattern_builder = RolePatternBuilder(feature_dict)
     role_pattern = role_pattern_builder.build(pos_match)
-    send('saving pattern to database')
+    send('Saving pattern to database')
     pattern_row = {
         'name': 'unamed_pattern',
         'role_pattern_instance': pickle.dumps(role_pattern)
@@ -58,7 +60,8 @@ def build_pattern(data):
         'pos_or_neg': 'pos',
     }
     pattern_id = db.insert_row('pattern_training_matches', pattern_training_match_row)
-    send('pattern saved: {}'.format(pattern_id))
+    send('Pattern saved. Pattern ID: {}'.format(pattern_id))
+    emit('build_pattern_success', {'pattern_id': pattern_id})
 
 
 @socketio.on('find_matches')
@@ -89,15 +92,16 @@ def find_matches(data):
             }
             db.insert_row('pattern_matches', pattern_match_row)
     send('matches saved: {}'.format(match_ids))
+    emit('find_matches_success')
 
 
 @socketio.on('refine_pattern')
 def refine_pattern(data):
     send('refine pattern request received')
-    send('loading pattern')
+    send('Loading pattern')
     pattern_id = data['pattern_id']
     role_pattern = db.load_role_pattern(pattern_id)
-    send('loading matches')
+    send('Loading matches')
     pos_match_id = data['pos_match_id']
     neg_match_ids = data['neg_match_ids']
     pos_match_row = db.fetch_row('matches', pos_match_id, return_type='dict')
@@ -140,6 +144,7 @@ def refine_pattern(data):
         send('pattern saved: {}'.format(pattern_id))
     else:
         send('pattern refinement unsuccessful')
+    emit('refine_pattern_success')
 
 
 if __name__ == '__main__':
