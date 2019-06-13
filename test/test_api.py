@@ -36,15 +36,15 @@ class TestApi:
         received = client.get_received()
         assert received[-1]['name'] == 'find_matches_success'
 
-    def test_refine_pattern(self):
-        client = self.client
-        event_name = 'refine_pattern'
-        data = {
-            'pattern_id': 2,
-            'pos_match_id': 2,
-            'neg_match_ids': [3],
-        }
-        client.get_received()
-        client.emit(event_name, data)
-        received = client.get_received()
-        assert received[-1]['name'] == 'refine_pattern_success'
+    # def test_refine_pattern(self):
+    #     client = self.client
+    #     event_name = 'refine_pattern'
+    #     data = {
+    #         'pattern_id': 2,
+    #         'pos_match_id': 2,
+    #         'neg_match_ids': [3],
+    #     }
+    #     client.get_received()
+    #     client.emit(event_name, data)
+    #     received = client.get_received()
+    #     assert received[-1]['name'] == 'refine_pattern_success'

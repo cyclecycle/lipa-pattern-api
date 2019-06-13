@@ -38,13 +38,21 @@ def fetch_rows(table, row_ids, return_type='tup'):
 
 
 def insert_row(table, data):
-    column_names = ', '.join(data.keys())
+    column_names = []
+    values = []
+    for key, value in data.items():
+        column_names.append(key)
+        if isinstance(value, bytes):
+            value = sqlite3.Binary(value)
+        values.append(value)
+    placeholders = ', '.join(['?' for i in range(len(column_names))])
+    column_names = ', '.join(column_names)
     query = 'insert into {0} ({1}) values ({2})'.format(
         table,
         column_names,
-        ', '.join(['?' for i in range(len(data))])
+        placeholders,
     )
-    values = tuple(data.values())
+    values = tuple(values)
     row_id = db_query(query, values=values, return_id=True)
     return row_id
 

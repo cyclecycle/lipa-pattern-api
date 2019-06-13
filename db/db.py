@@ -2,6 +2,7 @@ import pickle
 from spacy.tokens import Doc
 from spacy.vocab import Vocab
 from db import sql
+import json
 
 
 def get_sentence_linguistic_data(sentence_id):
@@ -32,6 +33,10 @@ def despacify_match(match, sentence_id):
         despacified_tokens = []
         for token in tokens:
             despacified_token = token_from_db(sentence_id, token.i)
+            token_data = despacified_token.pop('data')
+            token_data = json.loads(token_data)
+            for k, v in token_data.items():
+                despacified_token[k] = v
             despacified_tokens.append(despacified_token)
         match[label] = despacified_tokens
     return match

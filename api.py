@@ -13,7 +13,7 @@ socketio = SocketIO(app)
 
 @socketio.on('connect')
 def on_connect():
-    print('something connected')
+    print('connected')
     send('connected')
 
 
@@ -25,7 +25,8 @@ def error_handler(data):
 
 @socketio.on_error_default
 def default_error_handler(e):
-    emit('error', e)
+    print(e)
+    emit('error', 'Something went wrong')
     print(request.event["message"])
     print(request.event["args"])
     raise e
@@ -48,10 +49,10 @@ def build_pattern(data):
     feature_dict = {'DEP': 'dep_', 'TAG': 'tag_'}
     role_pattern_builder = RolePatternBuilder(feature_dict)
     role_pattern = role_pattern_builder.build(pos_match)
-    send('Saving pattern to database')
+    role_pattern_bytes = pickle.dumps(role_pattern)
     pattern_row = {
         'name': 'unamed_pattern',
-        'role_pattern_instance': pickle.dumps(role_pattern)
+        'role_pattern_instance': role_pattern_bytes
     }
     pattern_id = db.insert_row('patterns', pattern_row)
     pattern_training_match_row = {
@@ -60,7 +61,7 @@ def build_pattern(data):
         'pos_or_neg': 'pos',
     }
     pattern_id = db.insert_row('pattern_training_matches', pattern_training_match_row)
-    send('Pattern saved. Pattern ID: {}'.format(pattern_id))
+    send('Pattern saved. ID: {}'.format(pattern_id))
     emit('build_pattern_success', {'pattern_id': pattern_id})
 
 
@@ -68,11 +69,11 @@ def build_pattern(data):
 def find_matches(data):
     # Look for matches in all sentences
     # Load the role pattern class
-    send('find matches request received')
-    send('loading pattern')
+    send('Find matches request received')
+    send('Loading pattern')
     pattern_id = data['pattern_id']
     role_pattern = db.load_role_pattern(pattern_id)
-    send('finding matches')
+    send('Finding matches')
     sentence_ids = db.get_ids('sentences')
     match_ids = []
     for sentence_id in sentence_ids:
@@ -82,7 +83,7 @@ def find_matches(data):
         for match in matches:
             match_row = {
                 'sentence_id': sentence_id,
-                'data': json.dumps(match)
+                'data': json.dumps({'slots': match})
             }
             match_id = db.insert_row('matches', match_row)
             match_ids.append(match_id)
@@ -91,7 +92,7 @@ def find_matches(data):
                 'pattern_id': pattern_id,
             }
             db.insert_row('pattern_matches', pattern_match_row)
-    send('matches saved: {}'.format(match_ids))
+    send('Matches saved. IDs: {}'.format(match_ids))
     emit('find_matches_success')
 
 
