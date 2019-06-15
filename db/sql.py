@@ -7,6 +7,7 @@ db_path = config['db_file_path']
 def db_query(query, values=None, fetch='all', return_id=False):
     with sqlite3.connect(db_path) as con:
         cur = con.cursor()
+        cur.execute('PRAGMA foreign_keys=ON')
         if values:
             cur.execute(query, values)
         else:
@@ -15,6 +16,8 @@ def db_query(query, values=None, fetch='all', return_id=False):
             result = cur.fetchone()
         if fetch == 'all':
             result = cur.fetchall()
+        if fetch == 'none':
+            result = None
         if return_id:
             result = cur.lastrowid
     return result

@@ -51,7 +51,6 @@ def build_pattern(data):
     role_pattern = role_pattern_builder.build(pos_match)
     role_pattern_bytes = pickle.dumps(role_pattern)
     pattern_row = {
-        'name': 'unamed_pattern',
         'role_pattern_instance': role_pattern_bytes
     }
     pattern_id = db.insert_row('patterns', pattern_row)
@@ -146,6 +145,29 @@ def refine_pattern(data):
     else:
         send('pattern refinement unsuccessful')
     emit('refine_pattern_success')
+
+
+@socketio.on('find_all_pattern_matches')
+def find_all_pattern_matches():
+    pattern_ids = db.get_ids('patterns')
+    for pattern_id in pattern_ids:
+        find_matches_data = {'pattern_id': pattern_id}
+        find_matches(find_matches_data)
+
+
+@socketio.on('delete_all_pattern_matches')
+def delete_all_pattern_matches():
+    query = 'delete from pattern_matches'
+    db.db_query(query, fetch='none')
+
+
+@socketio.on('refresh_pattern_matches')
+def refresh_pattern_matches():
+    send('Refresh pattern matches request received')
+    delete_all_pattern_matches()
+    find_all_pattern_matches()
+    send('Refresh pattern matches done')
+    emit('refresh_pattern_matches_success')
 
 
 if __name__ == '__main__':

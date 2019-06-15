@@ -22,6 +22,8 @@ def load_sentence_doc(sentence_id):
 
 def load_role_pattern(pattern_id):
     row = sql.fetch_row('patterns', pattern_id, return_type='dict')
+    if not row:
+        raise Exception('No pattern found for id {}' .format(pattern_id))
     role_pattern_instance = row['role_pattern_instance']
     role_pattern = pickle.loads(role_pattern_instance)
     return role_pattern
