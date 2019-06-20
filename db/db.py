@@ -2,7 +2,7 @@ import pickle
 from spacy.tokens import Doc
 from spacy.vocab import Vocab
 from db import sql
-import json
+import util
 
 
 def get_sentence_linguistic_data(sentence_id):
@@ -31,29 +31,35 @@ def load_role_pattern(pattern_id):
 
 def despacify_match(match, sentence_id):
     # Replace each token with its database representation
+    slots = {}  # The labelled tokens
     for label, tokens in match.items():
         despacified_tokens = []
         for token in tokens:
             despacified_token = token_from_db(sentence_id, token.i)
-            token_data = despacified_token.pop('data')
-            token_data = json.loads(token_data)
-            for k, v in token_data.items():
-                despacified_token[k] = v
+            despacified_token = util.unpack_json_field(despacified_token, 'data')
             despacified_tokens.append(despacified_token)
-        match[label] = despacified_tokens
-    return match
+        slots[label] = despacified_tokens
+    match_tokens = match.match_tokens  # Includes the unlabelled tokens
+    match_tokens = [token_from_db(sentence_id, token.i) for token in match_tokens]
+    match_tokens = [util.unpack_json_field(token, 'data') for token in match_tokens]
+    return slots, match_tokens
 
 
 def spacify_match(match, sentence_id):
-    doc = load_sentence_doc(sentence_id)
     for label, tokens in match.items():
-        spacy_tokens = []
-        for token in tokens:
-            token_offset = token['token_offset']
-            spacy_token = doc[token_offset]
-            spacy_tokens.append(spacy_token)
+        spacy_tokens = spacify_tokens(tokens, sentence_id)
         match[label] = spacy_tokens
     return match
+
+
+def spacify_tokens(tokens, sentence_id):
+    doc = load_sentence_doc(sentence_id)
+    spacy_tokens = []
+    for token in tokens:
+        token_offset = token['token_offset']
+        spacy_token = doc[token_offset]
+        spacy_tokens.append(spacy_token)
+    return spacy_tokens
 
 
 def token_from_db(sentence_id, token_offset):

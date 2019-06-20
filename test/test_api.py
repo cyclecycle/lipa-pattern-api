@@ -48,3 +48,40 @@ class TestApi:
     #     client.emit(event_name, data)
     #     received = client.get_received()
     #     assert received[-1]['name'] == 'refine_pattern_success'
+
+    def test_visualise_pattern(self):
+        client = self.client
+        event_name = 'visualise_pattern'
+        data = {
+            'pattern_id': 2,
+        }
+        client.get_received()
+        client.emit(event_name, data)
+        received = client.get_received()
+        assert isinstance(received[-1]['args'][0], dict)
+        assert received[-1]['name'] == 'visualise_pattern_success'
+
+    def test_visualise_sentence(self):
+        client = self.client
+        event_name = 'visualise_sentence'
+        data = {
+            'sentence_id': 2,
+        }
+        client.get_received()
+        client.emit(event_name, data)
+        received = client.get_received()
+        assert isinstance(received[-1]['args'][0], dict)
+        assert received[-1]['name'] == 'visualise_sentence_success'
+
+    def test_visualise_match(self):
+        client = self.client
+        event_name = 'visualise_match'
+        data = {
+            'match_id': 1,
+        }
+        client.get_received()
+        client.emit(event_name, data)
+        received = client.get_received()
+        assert isinstance(received[-1]['args'][0], dict)
+        assert received[-1]['name'] == 'visualise_match_success'
+

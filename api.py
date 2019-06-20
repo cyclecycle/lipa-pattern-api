@@ -2,7 +2,8 @@ from flask import Flask, request
 from flask_socketio import SocketIO, send, emit
 import pickle
 import json
-from role_pattern_nlp import RolePatternBuilder
+from role_pattern_nlp import RolePatternBuilder, RolePatternMatch
+import visualise_spacy_tree
 import db
 
 
@@ -13,7 +14,6 @@ socketio = SocketIO(app)
 
 @socketio.on('connect')
 def on_connect():
-    print('connected')
     send('connected')
 
 
@@ -48,7 +48,7 @@ def build_pattern(data):
     send('Calculating pattern')
     feature_dict = {'DEP': 'dep_', 'TAG': 'tag_'}
     role_pattern_builder = RolePatternBuilder(feature_dict)
-    role_pattern = role_pattern_builder.build(pos_match)
+    role_pattern = role_pattern_builder.build(pos_match, validate_pattern=True)
     role_pattern_bytes = pickle.dumps(role_pattern)
     pattern_row = {
         'role_pattern_instance': role_pattern_bytes
@@ -78,11 +78,11 @@ def find_matches(data):
     for sentence_id in sentence_ids:
         doc = db.load_sentence_doc(sentence_id)
         matches = role_pattern.match(doc)
-        matches = [db.despacify_match(match, sentence_id) for match in matches]
         for match in matches:
+            slots, match_tokens = db.despacify_match(match, sentence_id)
             match_row = {
                 'sentence_id': sentence_id,
-                'data': json.dumps({'slots': match})
+                'data': json.dumps({'slots': slots, 'match_tokens': match_tokens})
             }
             match_id = db.insert_row('matches', match_row)
             match_ids.append(match_id)
@@ -168,6 +168,58 @@ def refresh_pattern_matches():
     find_all_pattern_matches()
     send('Refresh pattern matches done')
     emit('refresh_pattern_matches_success')
+
+
+@socketio.on('visualise_pattern')
+def visualise_pattern(data):
+    pattern_id = data['pattern_id']
+    send('Loading pattern')
+    role_pattern = db.load_role_pattern(pattern_id)
+    send('Generating DOT')
+    graph, legend = role_pattern.to_pydot(legend=True)
+    graph, legend = graph.to_string(), legend.to_string()
+    dot_data = {
+        'pattern': graph,
+        'legend': legend,
+    }
+    emit('visualise_pattern_success', dot_data)
+
+
+@socketio.on('visualise_sentence')
+def visualise_sentence(data):
+    sentence_id = data['sentence_id']
+    send('Loading sentence')
+    doc = db.load_sentence_doc(sentence_id)
+    sentence_dot = visualise_spacy_tree.to_pydot(doc)
+    dot_data = {
+        'sentence': sentence_dot,
+    }
+    emit('visualise_sentence_success', dot_data)
+
+
+@socketio.on('visualise_match')
+def visualise_match(data):
+    match_id = data['match_id']
+    send('Loading data')
+    match_row = db.fetch_row(
+        'matches',
+        match_id,
+        return_type='dict',
+    )
+    sentence_id = match_row['sentence_id']
+    slots = json.loads(match_row['data'])['slots']
+    match_tokens = json.loads(match_row['data'])['match_tokens']
+    slots = db.spacify_match(slots, sentence_id)
+    match_tokens = db.spacify_tokens(match_tokens, sentence_id)
+    role_pattern_match = RolePatternMatch(slots)
+    role_pattern_match.match_tokens = match_tokens
+    graph, legend = role_pattern_match.to_pydot(legend=True)
+    graph, legend = graph.to_string(), legend.to_string()
+    dot_data = {
+        'match': graph,
+        'legend': legend,
+    }
+    emit('visualise_match_success', dot_data)
 
 
 if __name__ == '__main__':
