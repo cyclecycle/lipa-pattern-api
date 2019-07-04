@@ -56,10 +56,11 @@ def build_pattern(data):
     feature_dict = {'DEP': 'dep_', 'TAG': 'tag_'}
     role_pattern_builder = RolePatternBuilder(feature_dict)
     role_pattern = role_pattern_builder.build(pos_match, validate_pattern=True)
+    token_labels = role_pattern.token_labels
     role_pattern_bytes = pickle.dumps(role_pattern)
     pattern_row = {
         'role_pattern_instance': role_pattern_bytes,
-        'token_labels': json.dumps(role_pattern.token_labels),
+        'data': json.dumps({'token_labels': token_labels}),
     }
     pattern_id = db.insert_row('patterns', pattern_row)
     pattern_training_match_row = {
