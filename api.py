@@ -2,7 +2,8 @@ from flask import Flask, request
 from flask_socketio import SocketIO, send, emit
 import pickle
 import json
-from role_pattern_nlp import RolePatternBuilder, RolePatternMatch
+from spacy.tokens import Token
+from role_pattern_nlp import RolePatternBuilder, RolePatternMatch, role_pattern_vis
 import visualise_spacy_tree
 import db
 
@@ -10,6 +11,12 @@ import db
 app = Flask(__name__)
 # app.config['SECRET_KEY'] = 'secret!'
 socketio = SocketIO(app)
+
+DEFAULT_NODE_ATTRS = {
+    **role_pattern_vis.DEFAULT_NODE_ATTRS,
+    **role_pattern_vis.DEFAULT_STYLE_ATTRS,
+}
+Token.set_extension('plot', default=DEFAULT_NODE_ATTRS)
 
 
 @socketio.on('connect')
@@ -51,7 +58,8 @@ def build_pattern(data):
     role_pattern = role_pattern_builder.build(pos_match, validate_pattern=True)
     role_pattern_bytes = pickle.dumps(role_pattern)
     pattern_row = {
-        'role_pattern_instance': role_pattern_bytes
+        'role_pattern_instance': role_pattern_bytes,
+        'token_labels': json.dumps(role_pattern.token_labels),
     }
     pattern_id = db.insert_row('patterns', pattern_row)
     pattern_training_match_row = {
@@ -179,7 +187,7 @@ def visualise_pattern(data):
     graph, legend = role_pattern.to_pydot(legend=True)
     graph, legend = graph.to_string(), legend.to_string()
     dot_data = {
-        'pattern': graph,
+        'graph': graph,
         'legend': legend,
     }
     emit('visualise_pattern_success', dot_data)
@@ -190,9 +198,12 @@ def visualise_sentence(data):
     sentence_id = data['sentence_id']
     send('Loading sentence')
     doc = db.load_sentence_doc(sentence_id)
-    sentence_dot = visualise_spacy_tree.to_pydot(doc)
+    for token in doc:
+        token._.plot['label'] = '{0} [{1}]\n({2})'.format(token.orth_, token.i, token.tag_)
+    graph = visualise_spacy_tree.to_pydot(doc)
+    graph = graph.to_string()
     dot_data = {
-        'sentence': sentence_dot,
+        'graph': graph,
     }
     emit('visualise_sentence_success', dot_data)
 
@@ -216,7 +227,7 @@ def visualise_match(data):
     graph, legend = role_pattern_match.to_pydot(legend=True)
     graph, legend = graph.to_string(), legend.to_string()
     dot_data = {
-        'match': graph,
+        'graph': graph,
         'legend': legend,
     }
     emit('visualise_match_success', dot_data)

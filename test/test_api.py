@@ -84,4 +84,3 @@ class TestApi:
         received = client.get_received()
         assert isinstance(received[-1]['args'][0], dict)
         assert received[-1]['name'] == 'visualise_match_success'
-
