@@ -49,9 +49,11 @@ def build_pattern(data):
     feature_dict = {'DEP': 'dep_', 'TAG': 'tag_'}
     role_pattern_builder = RolePatternBuilder(feature_dict)
     role_pattern = role_pattern_builder.build(pos_match, validate_pattern=True)
+    token_labels = role_pattern.token_labels
     role_pattern_bytes = pickle.dumps(role_pattern)
     pattern_row = {
-        'role_pattern_instance': role_pattern_bytes
+        'role_pattern_instance': role_pattern_bytes,
+        'data': json.dumps({'token_labels': token_labels}),
     }
     pattern_id = db.insert_row('patterns', pattern_row)
     pattern_training_match_row = {
@@ -191,6 +193,7 @@ def visualise_sentence(data):
     send('Loading sentence')
     doc = db.load_sentence_doc(sentence_id)
     sentence_dot = visualise_spacy_tree.to_pydot(doc)
+    sentence_dot = sentence_dot.to_string()
     dot_data = {
         'sentence': sentence_dot,
     }
