@@ -4,6 +4,7 @@ import visualise_spacy_tree
 from role_pattern_nlp import RolePatternMatch, role_pattern_vis
 import db
 from spacy.tokens import Token
+from util import pprint
 
 
 # DEFAULT_NODE_ATTRS = {
@@ -18,7 +19,12 @@ def visualise_pattern(data):
     pattern_id = data['pattern_id']
     send('Loading pattern')
     role_pattern = db.load_role_pattern(pattern_id)
+    pprint(role_pattern.spacy_dep_pattern)
     send('Generating DOT')
+    node_attrs = role_pattern_vis.DEFAULT_NODE_ATTRS
+    # for token in doc:
+    #     token._.plot.update(node_attrs)
+    #     token._.plot['label'] = '{0} [{1}]\n({2})'.format(token.orth_, token.i, token.tag_)
     graph, legend = role_pattern.to_pydot(legend=True)
     graph, legend = graph.to_string(), legend.to_string()
     dot_data = {
@@ -35,7 +41,11 @@ def visualise_sentence(data):
     node_attrs = role_pattern_vis.DEFAULT_NODE_ATTRS
     for token in doc:
         token._.plot.update(node_attrs)
-        token._.plot['label'] = '{0} [{1}]\n({2})'.format(token.orth_, token.i, token.tag_)
+        label = '{0} [{1}]\n({2})'.format(token.orth_, token.i, token.tag_)
+        # for key, val in token._.items():
+        #     if val:
+        #         label += '\n{0}: {1}'.format(key, val)
+        token._.plot['label'] = label
     graph = visualise_spacy_tree.to_pydot(doc)
     graph = graph.to_string()
     dot_data = {

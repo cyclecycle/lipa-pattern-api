@@ -48,4 +48,4 @@ for event, func in event_map.items():
 
 
 if __name__ == '__main__':
-    socketio.run(app)
+    socketio.run(app, debug=True)

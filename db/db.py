@@ -23,7 +23,7 @@ def load_sentence_doc(sentence_id):
 def load_role_pattern(pattern_id):
     row = sql.fetch_row('patterns', pattern_id, return_type='dict')
     if not row:
-        raise Exception('No pattern found for id {}' .format(pattern_id))
+        raise Exception('No pattern found for id {}'.format(pattern_id))
     role_pattern_instance = row['role_pattern_instance']
     role_pattern = pickle.loads(role_pattern_instance)
     return role_pattern
@@ -48,6 +48,11 @@ def despacify_match(match, sentence_id):
 def spacify_match(match, sentence_id):
     for label, tokens in match.items():
         spacy_tokens = spacify_tokens(tokens, sentence_id)
+        # Set custom extensions which are lost during seralisation
+        for token_dict, spacy_token in zip(tokens, spacy_tokens):
+            custom_features = token_dict['features']['_']
+            for key, val in custom_features.items():
+                spacy_token._.set(key, val)
         match[label] = spacy_tokens
     return match
 
@@ -63,7 +68,9 @@ def spacify_tokens(tokens, sentence_id):
 
 
 def token_from_db(sentence_id, token_offset):
-    query = 'select * from tokens where sentence_id = {0} and token_offset = {1}'.format(sentence_id, token_offset)
+    query = 'select * from tokens where sentence_id = {0} and token_offset = {1}'.format(
+        sentence_id, token_offset
+    )
     token_row = sql.db_query(query, fetch='one')
     token_row = sql.row_to_dict(token_row, 'tokens')
     return token_row
