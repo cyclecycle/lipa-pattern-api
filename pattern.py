@@ -16,19 +16,12 @@ def build_pattern(data):
     feature_dict = data.get('feature_dict')
     if not feature_dict:
         feature_dict = DEFAULT_BUILD_PATTERN_FEATURE_DICT
-    # Re-init custom extensions lost during serialisation
-    custom_features = feature_dict.get('_')
-    if custom_features:
-        extension_names = custom_features.keys()
-        util.init_spacy_extensions(extension_names)
     pos_match_row = db.fetch_row('matches', pos_match_id, return_type='dict')
     sentence_id = pos_match_row['sentence_id']
     send('Preparing training data')
     pos_match = json.loads(pos_match_row['data'])['slots']
-    pprint(pos_match_row['data'])
     pos_match = db.spacify_match(pos_match, sentence_id)
     send('Calculating pattern')
-    pprint(pos_match['up'][0]._.valence)
     role_pattern_builder = RolePatternBuilder(feature_dict)
     role_pattern = role_pattern_builder.build(pos_match, validate_pattern=True)
     token_labels = role_pattern.token_labels

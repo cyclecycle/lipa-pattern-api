@@ -1,6 +1,7 @@
 import json
 from flask_socketio import send, emit
 import db
+import util
 
 
 def find_matches(data):
@@ -11,10 +12,12 @@ def find_matches(data):
     pattern_id = data['pattern_id']
     role_pattern = db.load_role_pattern(pattern_id)
     send('Finding matches')
+    # Init a minimal vocab to save on deserialisation and memory
+    vocab = util.init_vocab()
     sentence_ids = db.get_ids('sentences')
     match_ids = []
     for sentence_id in sentence_ids:
-        doc = db.load_sentence_doc(sentence_id)
+        doc = db.load_sentence_doc(sentence_id, vocab)
         matches = role_pattern.match(doc)
         for match in matches:
             slots, match_tokens = db.despacify_match(match, sentence_id)

@@ -1,21 +1,16 @@
 import pickle
 from spacy.tokens import Doc
-from spacy.vocab import Vocab
 from db import sql
 import util
 
 
-def get_sentence_linguistic_data(sentence_id):
-    query = 'select spacy_doc, spacy_vocab from sentence_linguistic_data where sentence_id = ?'
+def load_sentence_doc(sentence_id, vocab=None):
+    query = 'select spacy_doc from spacy_sentence_doc where sentence_id = ?'
     values = (sentence_id,)
     results = sql.db_query(query, values=values, fetch='one')
-    spacy_doc, spacy_vocab = results
-    return spacy_doc, spacy_vocab
-
-
-def load_sentence_doc(sentence_id):
-    spacy_doc_bytes, spacy_vocab_bytes = get_sentence_linguistic_data(sentence_id)
-    vocab = Vocab().from_bytes(spacy_vocab_bytes)
+    spacy_doc_bytes = results[0]
+    if not vocab:
+        vocab = util.init_vocab()
     doc = Doc(vocab).from_bytes(spacy_doc_bytes)
     return doc
 
@@ -48,11 +43,6 @@ def despacify_match(match, sentence_id):
 def spacify_match(match, sentence_id):
     for label, tokens in match.items():
         spacy_tokens = spacify_tokens(tokens, sentence_id)
-        # Set custom extensions which are lost during seralisation
-        for token_dict, spacy_token in zip(tokens, spacy_tokens):
-            custom_features = token_dict['features']['_']
-            for key, val in custom_features.items():
-                spacy_token._.set(key, val)
         match[label] = spacy_tokens
     return match
 
@@ -63,6 +53,9 @@ def spacify_tokens(tokens, sentence_id):
     for token in tokens:
         token_offset = token['token_offset']
         spacy_token = doc[token_offset]
+        # Set custom extensions which are lost during seralisation
+        custom_features = token['features'].get('_')
+        util.set_token_extensions(spacy_token, custom_features)
         spacy_tokens.append(spacy_token)
     return spacy_tokens
 
