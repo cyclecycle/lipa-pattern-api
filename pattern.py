@@ -3,8 +3,6 @@ import json
 from flask_socketio import send, emit
 from role_pattern_nlp import RolePatternBuilder
 import db
-import util
-from util import pprint
 
 DEFAULT_BUILD_PATTERN_FEATURE_DICT = {'DEP': 'dep_', 'TAG': 'tag_'}
 DEFAULT_REFINE_PATTERN_FEATURE_DICT = {'DEP': 'dep_', 'TAG': 'tag_', 'LOWER': 'lower_'}
