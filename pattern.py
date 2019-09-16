@@ -12,6 +12,7 @@ def build_pattern(data):
     send('Build pattern request received')
     pos_match_id = data['pos_match_id']
     feature_dict = data.get('feature_dict')
+    pattern_id = data.get('pattern_id')
     if not feature_dict:
         feature_dict = DEFAULT_BUILD_PATTERN_FEATURE_DICT
     pos_match_row = db.fetch_row('matches', pos_match_id, return_type='dict')
@@ -28,13 +29,15 @@ def build_pattern(data):
         'role_pattern_instance': role_pattern_bytes,
         'data': json.dumps({'token_labels': token_labels}),
     }
+    if pattern_id:
+        pattern_row['id'] = pattern_id
     pattern_id = db.insert_row('patterns', pattern_row)
     pattern_training_match_row = {
         'match_id': pos_match_id,
         'pattern_id': pattern_id,
         'pos_or_neg': 'pos',
     }
-    pattern_id = db.insert_row('pattern_training_matches', pattern_training_match_row)
+    db.insert_row('pattern_training_matches', pattern_training_match_row)
     send('Pattern saved. ID: {}'.format(pattern_id))
     emit('build_pattern_success', {'pattern_id': pattern_id})
 

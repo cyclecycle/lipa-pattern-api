@@ -3,6 +3,7 @@ from flask_socketio import SocketIO, send, emit
 from pattern import build_pattern, refine_pattern
 from match import find_matches, find_matches_all_patterns, delete_all_pattern_matches, refresh_pattern_matches
 from visualise import visualise_sentence, visualise_pattern, visualise_match
+from config import config
 
 
 app = Flask(__name__)
@@ -48,4 +49,4 @@ for event, func in event_map.items():
 
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True)
+    socketio.run(app, debug=True, port=config['port'])

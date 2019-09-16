@@ -18,6 +18,8 @@ def find_matches(data):
     match_ids = []
     for sentence_id in sentence_ids:
         doc = db.load_sentence_doc(sentence_id, vocab)
+        for token in doc:
+            print(token, token._.valence)
         matches = role_pattern.match(doc)
         for match in matches:
             slots, match_tokens = db.despacify_match(match, sentence_id)

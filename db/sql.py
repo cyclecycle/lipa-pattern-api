@@ -4,7 +4,7 @@ from config import config
 db_path = config['db_file_path']
 
 
-def db_query(query, values=None, fetch='all', return_id=False):
+def db_query(query, values=None, fetch='all', return_id=False, **kwargs):
     with sqlite3.connect(db_path) as con:
         cur = con.cursor()
         cur.execute('PRAGMA foreign_keys=ON')
@@ -23,24 +23,24 @@ def db_query(query, values=None, fetch='all', return_id=False):
     return result
 
 
-def fetch_row(table, row_id, return_type='tup'):
+def fetch_row(table, row_id, return_type='tup', **kwargs):
     query = 'select * from {0} where id = {1}'.format(table, row_id)
-    result = db_query(query, fetch='one')
+    result = db_query(query, fetch='one', **kwargs)
     if return_type == 'dict':
-        result = row_to_dict(result, table)
+        result = row_to_dict(result, table, **kwargs)
     return result
 
 
-def fetch_rows(table, row_ids, return_type='tup'):
+def fetch_rows(table, row_ids, return_type='tup', **kwargs):
     id_list = ', '.join([str(id_) for id_ in row_ids])
     query = 'select * from {0} where id IN ({1})'.format(table, id_list)
-    results = db_query(query, fetch='all')
+    results = db_query(query, fetch='all', **kwargs)
     if return_type == 'dict':
-        results = rows_to_dicts(results, table)
+        results = rows_to_dicts(results, table, **kwargs)
     return results
 
 
-def insert_row(table, data):
+def insert_row(table, data, **kwargs):
     column_names = []
     values = []
     for key, value in data.items():
@@ -56,18 +56,18 @@ def insert_row(table, data):
         placeholders,
     )
     values = tuple(values)
-    row_id = db_query(query, values=values, return_id=True)
+    row_id = db_query(query, values=values, return_id=True, **kwargs)
     return row_id
 
 
-def get_column_names(table):
+def get_column_names(table, **kwargs):
     query = 'PRAGMA TABLE_INFO({})'.format(table)
-    result = db_query(query, fetch='all')
+    result = db_query(query, fetch='all', **kwargs)
     names = [tup[1] for tup in result]
     return names
 
 
-def row_to_dict(row, table):
+def row_to_dict(row, table, **kwargs):
     if not row:
         return {}
     column_names = get_column_names(table)
@@ -75,8 +75,8 @@ def row_to_dict(row, table):
     return dict_
 
 
-def rows_to_dicts(rows, table):
-    column_names = get_column_names(table)
+def rows_to_dicts(rows, table, **kwargs):
+    column_names = get_column_names(table, **kwargs)
     dicts = []
     for row in rows:
         if not row:
@@ -87,8 +87,8 @@ def rows_to_dicts(rows, table):
     return dicts
 
 
-def get_ids(table):
+def get_ids(table, **kwargs):
     query = 'select id from {}'.format(table)
-    results = db_query(query)
+    results = db_query(query, **kwargs)
     ids = [result[0] for result in results]
     return ids

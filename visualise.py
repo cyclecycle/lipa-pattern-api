@@ -62,6 +62,7 @@ def visualise_match(data):
         match_id,
         return_type='dict',
     )
+    print(match_row['data'])
     sentence_id = match_row['sentence_id']
     slots = json.loads(match_row['data'])['slots']
     match_tokens = json.loads(match_row['data'])['match_tokens']

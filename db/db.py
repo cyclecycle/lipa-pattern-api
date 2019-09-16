@@ -1,5 +1,6 @@
 import pickle
 from spacy.tokens import Doc
+from role_pattern_nlp.match import RolePatternMatch
 from db import sql
 import util
 
@@ -12,6 +13,16 @@ def load_sentence_doc(sentence_id, vocab=None):
     if not vocab:
         vocab = util.init_vocab()
     doc = Doc(vocab).from_bytes(spacy_doc_bytes)
+    query = 'select * from tokens where sentence_id = ?'
+    results = sql.db_query(query, values=values)
+    tokens = sql.rows_to_dicts(results, 'tokens')
+    tokens = [util.unpack_json_field(token, 'data') for token in tokens]
+    for token in tokens:
+        token_offset = token['token_offset']
+        spacy_token = doc[token_offset]
+        # Set custom extensions which are lost during seralisation
+        custom_features = token['features'].get('_')
+        util.set_token_extensions(spacy_token, custom_features)
     return doc
 
 
@@ -22,6 +33,14 @@ def load_role_pattern(pattern_id):
     role_pattern_instance = row['role_pattern_instance']
     role_pattern = pickle.loads(role_pattern_instance)
     return role_pattern
+
+
+def load_role_pattern_match(slots, match_tokens, sentence_id):
+    match = spacify_match(slots, sentence_id)
+    match_tokens = spacify_tokens(match_tokens, sentence_id)
+    match = RolePatternMatch(match)
+    match.match_tokens = match_tokens
+    return match
 
 
 def despacify_match(match, sentence_id):
